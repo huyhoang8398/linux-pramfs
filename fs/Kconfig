@@ -220,6 +220,15 @@ config ARCH_HAS_GIGANTIC_PAGE
 source "fs/configfs/Kconfig"
 source "fs/efivarfs/Kconfig"
 
+config PRAM
+	bool "Persistent over-kexec memory storage"
+	depends on X86
+	default y
+	help
+	  pram is a filesystem that saves its content on unmount to be restored
+	  on the next mount after kexec. It can be used for speeding up system
+	  reboot by saving application memory images there.
+
 endmenu
 
 menuconfig MISC_FILESYSTEMS
