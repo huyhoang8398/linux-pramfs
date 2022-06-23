@@ -67,7 +67,6 @@ const struct file_operations ramfs_file_operations = {
 	.llseek		= generic_file_llseek,
 	.get_unmapped_area	= ramfs_mmu_get_unmapped_area,
 	.unlocked_ioctl = myramfs_unlocked_ioctl,
-
 };
 
 const struct inode_operations ramfs_file_inode_operations = {
