@@ -28,48 +28,76 @@
 #include <linux/mm.h>
 #include <linux/ramfs.h>
 #include <linux/sched.h>
+#include <asm/pgtable.h>
 
 #include "internal.h"
-#include "myioctl.h"
+#include "pram-ioctl.h"
+
+struct pram_data {
+	struct list_head ranges;
+	struct mutex lock;
+};
 
 static unsigned long ramfs_mmu_get_unmapped_area(struct file *file,
-		unsigned long addr, unsigned long len, unsigned long pgoff,
-		unsigned long flags)
+						 unsigned long addr,
+						 unsigned long len,
+						 unsigned long pgoff,
+						 unsigned long flags)
 {
 	return current->mm->get_unmapped_area(file, addr, len, pgoff, flags);
 }
 
-static long myramfs_unlocked_ioctl(struct file *f,
-                unsigned int cmd,
-                unsigned long arg)
+static long pram_ioctl_dump(struct pram_data *data, struct pram_dump *karg)
+
 {
-    switch (cmd) {
-        case IOCTL_NUM1:
-            printk(KERN_INFO "Call by IOCTL_NUM1\n");
-            break;
-        case IOCTL_NUM2:
-            printk(KERN_INFO "Call by IOCTL_NUM2\n");
-            break;
-        default:
-            printk(KERN_INFO "Call by Default\n");
-            break;
-    }
-    return 0;
+	pgd_t *pgd;
+	pmd_t *pmd;
+	pte_t *pte;
+	struct page *page = NULL;
+	pud_t *pud;
+	void *kernel_address;
+
+	struct mm_struct *mm = current->mm;
+	pgd = pgd_offset(mm, karg->addr);
+	pmd = pmd_offset(pgd, karg->addr);
+	pte = *pte_offset_map(pmd, karg->addr);
+	page = pte_page(pte);
+
+    // TODO: Add locking here 
+    kernel_address = kmap(page);
+
+}
+
+static long pram_ioctl(struct file *filp, unsigned int ioctl, unsigned long arg)
+{
+	struct pram_data *data = filp->private_data;
+	BUG_ON(!data);
+	switch (ioctl) {
+	case PRAM_IOCTL_DUMP: {
+		struct pram_dump __user *uarg = (struct pram_dump __user *)arg;
+		struct pram_dump _karg;
+		if (unlikely(copy_from_user(&_karg, uarg, sizeof(_karg))))
+			return -EFAULT;
+		return pram_ioctl_dump(data, &_karg);
+	}
+	default:
+		return -ENOTTY;
+	}
 }
 
 const struct file_operations ramfs_file_operations = {
-	.read_iter	= generic_file_read_iter,
-	.write_iter	= generic_file_write_iter,
-	.mmap		= generic_file_mmap,
-	.fsync		= noop_fsync,
-	.splice_read	= generic_file_splice_read,
-	.splice_write	= iter_file_splice_write,
-	.llseek		= generic_file_llseek,
-	.get_unmapped_area	= ramfs_mmu_get_unmapped_area,
+	.read_iter = generic_file_read_iter,
+	.write_iter = generic_file_write_iter,
+	.mmap = generic_file_mmap,
+	.fsync = noop_fsync,
+	.splice_read = generic_file_splice_read,
+	.splice_write = iter_file_splice_write,
+	.llseek = generic_file_llseek,
+	.get_unmapped_area = ramfs_mmu_get_unmapped_area,
 	.unlocked_ioctl = myramfs_unlocked_ioctl,
 };
 
 const struct inode_operations ramfs_file_inode_operations = {
-	.setattr	= simple_setattr,
-	.getattr	= simple_getattr,
+	.setattr = simple_setattr,
+	.getattr = simple_getattr,
 };
