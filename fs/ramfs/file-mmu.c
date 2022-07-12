@@ -29,13 +29,16 @@
 #include <linux/ramfs.h>
 #include <linux/sched.h>
 #include <asm/pgtable.h>
+#include <linux/pagemap.h>
 
 #include "internal.h"
 #include "pram-ioctl.h"
+#include <uapi/linux/pram-phys.h>
 
 struct pram_data {
 	struct list_head ranges;
 	struct mutex lock;
+	struct address_space *mapping;
 };
 
 static unsigned long ramfs_mmu_get_unmapped_area(struct file *file,
@@ -63,14 +66,20 @@ static long pram_ioctl_dump(struct pram_data *data, struct pram_dump *karg)
 	pte = *pte_offset_map(pmd, karg->addr);
 	page = pte_page(pte);
 
-    // TODO: Add locking here 
-    kernel_address = kmap(page);
+	struct pram_file_node *node;
+	pgoff_t index = PRAM_ENTRY_INDEX(node->entries[0].flags);
+	pgoff_t subindex;
 
+	kernel_address = kmap(page);
+	add_to_page_cache_lru(page, data->mapping, index + subindex,
+			      GFP_KERNEL);
+	kunmap(page);
 }
 
 static long pram_ioctl(struct file *filp, unsigned int ioctl, unsigned long arg)
 {
 	struct pram_data *data = filp->private_data;
+	data->mapping = filp->f_mapping;
 	BUG_ON(!data);
 	switch (ioctl) {
 	case PRAM_IOCTL_DUMP: {
@@ -94,7 +103,7 @@ const struct file_operations ramfs_file_operations = {
 	.splice_write = iter_file_splice_write,
 	.llseek = generic_file_llseek,
 	.get_unmapped_area = ramfs_mmu_get_unmapped_area,
-	.unlocked_ioctl = myramfs_unlocked_ioctl,
+	.unlocked_ioctl = pram_ioctl,
 };
 
 const struct inode_operations ramfs_file_inode_operations = {
