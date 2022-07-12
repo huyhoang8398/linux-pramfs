@@ -62,9 +62,10 @@ static long pram_ioctl_dump(struct pram_data *data, struct pram_dump *karg)
 
 	struct mm_struct *mm = current->mm;
 	pgd = pgd_offset(mm, karg->addr);
-	pmd = pmd_offset(pgd, karg->addr);
-	pte = *pte_offset_map(pmd, karg->addr);
-	page = pte_page(pte);
+	pud = pud_offset(pgd, karg->addr);
+	pmd = pmd_offset(pud, karg->addr);
+	pte = pte_offset_map(pmd, karg->addr);
+	page = pte_page(*pte);
 
 	struct pram_file_node *node;
 	pgoff_t index = PRAM_ENTRY_INDEX(node->entries[0].flags);
