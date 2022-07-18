@@ -54,17 +54,32 @@ static long pram_ioctl_dump(struct pram_data *data, struct pram_dump *karg)
 {
 	pgd_t *pgd;
 	pmd_t *pmd;
-	p4d_t* p4d;
+	p4d_t *p4d;
 	pte_t *pte;
 	struct page *page = NULL;
 	pud_t *pud;
 	void *kernel_address;
 
 	pgd = pgd_offset(current->mm, (int)karg->addr);
+	if (pgd_none(*pgd) || pgd_bad(*pgd))
+		return 0;
+
 	p4d = p4d_offset(pgd, karg->addr);
+	if (p4d_none(*p4d) || p4d_bad(*p4d))
+		return 0;
+
 	pud = pud_offset(p4d, (unsigned long)karg->addr);
+	if (pud_none(*pud) || pud_bad(*p4d))
+    	return 0;
+	
 	pmd = pmd_offset(pud, karg->addr);
+	if (pmd_none(*pmd) || pmd_bad(*pmd))
+		return 0;
+
 	pte = pte_offset_map(pmd, karg->addr);
+	if (pte_none(*pte))
+		return 0;
+
 	page = pte_page(*pte);
 
 	struct pram_file_node *node;
