@@ -28,7 +28,6 @@
 #include <linux/mm.h>
 #include <linux/ramfs.h>
 #include <linux/sched.h>
-#include <asm/pgtable.h>
 #include <linux/pagemap.h>
 
 #include "internal.h"
@@ -55,14 +54,15 @@ static long pram_ioctl_dump(struct pram_data *data, struct pram_dump *karg)
 {
 	pgd_t *pgd;
 	pmd_t *pmd;
+	p4d_t* p4d;
 	pte_t *pte;
 	struct page *page = NULL;
 	pud_t *pud;
 	void *kernel_address;
 
-	struct mm_struct *mm = current->mm;
-	pgd = pgd_offset(mm, karg->addr);
-	pud = pud_offset(pgd, karg->addr);
+	pgd = pgd_offset(current->mm, (int)karg->addr);
+	p4d = p4d_offset(pgd, karg->addr);
+	pud = pud_offset(p4d, (unsigned long)karg->addr);
 	pmd = pmd_offset(pud, karg->addr);
 	pte = pte_offset_map(pmd, karg->addr);
 	page = pte_page(*pte);
