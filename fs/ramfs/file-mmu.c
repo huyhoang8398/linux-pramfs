@@ -69,7 +69,7 @@ static long pram_ioctl_dump(struct pram_data *data, struct pram_dump *karg)
 		return 0;
 
 	pud = pud_offset(p4d, (unsigned long)karg->addr);
-	if (pud_none(*pud) || pud_bad(*p4d))
+	if (pud_none(*pud) || pud_bad(*pud))
     	return 0;
 	
 	pmd = pmd_offset(pud, karg->addr);
